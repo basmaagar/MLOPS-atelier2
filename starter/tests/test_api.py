@@ -85,3 +85,44 @@ def test_modele_absent_renvoie_503():
     with TestClient(app) as client:
         state.pop("predictor", None)  # on simule un modèle non chargé
         assert post(client).status_code == 503
+
+
+def test_heure_24_refusee():
+    with TestClient(app) as client:
+        response = client.post("/v1/predict", json={
+            "distance_km": 120,
+            "poids_kg": 450,
+            "heure_depart": 24,  
+            "pluie_mm": 5.0,
+            "trafic_index": 5.0,
+            "nb_arrets": 2,
+            "type_vehicule": "camion"
+        })
+        assert response.status_code == 422
+
+
+def test_alerte_coherente_avec_le_seuil():
+    with TestClient(app) as client:
+        response_difficile = client.post("/v1/predict", json={
+            "distance_km": 500,
+            "poids_kg": 2000,
+            "heure_depart": 17,
+            "pluie_mm": 50.0,
+            "trafic_index": 10.0,
+            "nb_arrets": 5,
+            "type_vehicule": "camion"
+        })
+        assert response_difficile.status_code == 200
+        assert response_difficile.json()["alerte"] is True
+
+        response_facile = client.post("/v1/predict", json={
+            "distance_km": 5,
+            "poids_kg": 3,
+            "heure_depart": 11,
+            "pluie_mm": 0.0,
+            "trafic_index": 1.0,
+            "nb_arrets": 0,
+            "type_vehicule": "moto"
+        })
+        assert response_facile.status_code == 200
+        assert response_facile.json()["alerte"] is False
